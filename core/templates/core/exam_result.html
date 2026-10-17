@@ -1,0 +1,39 @@
+{% extends "core/base.html" %}
+{% block title %}Result · {{ exam.title }}{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard' %}" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> My exams</a>
+
+<div class="card p-4 mt-2 mb-4 text-center">
+  <div class="text-muted">{{ exam.title }} &middot; {{ exam.subject }}</div>
+  <div class="display-4 fw-bold" style="color: var(--brand)">{{ attempt.score }} / {{ attempt.total }}</div>
+  <div class="fs-5">{{ attempt.percent }}%
+    {% if attempt.passed %}<span class="badge-soft soft-green ms-2">Passed</span>{% else %}<span class="badge-soft soft-red ms-2">Not passed</span>{% endif %}
+  </div>
+  <div class="small text-muted mt-1">Pass mark {{ exam.pass_percent }}% &middot; finished in {{ attempt.minutes_taken }} min</div>
+</div>
+
+<h5 class="mb-3">Answer review</h5>
+{% for r in review %}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between mb-2">
+      <span class="badge-soft {% if r.is_correct %}soft-green{% elif r.picked %}soft-red{% else %}soft-gray{% endif %}">
+        Question {{ forloop.counter }} &middot; {% if r.is_correct %}Correct{% elif r.picked %}Wrong{% else %}Skipped{% endif %}
+      </span>
+      <span class="small text-muted">{% if r.is_correct %}{{ r.question.marks }}{% else %}0{% endif %} / {{ r.question.marks }}</span>
+    </div>
+    <p class="fw-semibold" style="white-space: pre-line">{{ r.question.text }}</p>
+    {% for c in r.options %}
+      <div class="p-2 px-3 mb-1 rounded border
+        {% if c.pk == r.correct_id %}border-success bg-success-subtle{% elif c.pk == r.picked %}border-danger bg-danger-subtle{% endif %}">
+        {% if c.pk == r.correct_id %}<i class="bi bi-check-circle-fill text-success me-1"></i>
+        {% elif c.pk == r.picked %}<i class="bi bi-x-circle-fill text-danger me-1"></i>
+        {% else %}<i class="bi bi-circle text-muted me-1"></i>{% endif %}
+        {{ c.text }}
+        {% if c.pk == r.picked %}<span class="small text-muted ms-1">(your answer)</span>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "core/base.html" %}
+{% block title %}{{ classroom.name }} · Online Exam System{% endblock %}
+{% block content %}
+<a href="{% url 'class_list' %}" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> My classes</a>
+<h2 class="page-title mt-1 mb-3">{{ classroom.name }}</h2>
+
+<div class="card p-4 mb-4">
+  <div class="text-muted small text-uppercase" style="letter-spacing:.05em">Join code</div>
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <span class="fs-2 fw-bold font-monospace" style="color: var(--brand); letter-spacing: .15em">{{ classroom.code }}</span>
+    <span class="text-muted small">Students enter this code on their dashboard to join.</span>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <h5 class="mb-2">Students ({{ students|length }})</h5>
+    <div class="card">
+      <ul class="list-group list-group-flush">
+        {% for e in students %}
+          <li class="list-group-item">{{ e.student.display_name }} <span class="text-muted small">&middot; {{ e.student.username }}</span></li>
+        {% empty %}
+          <li class="list-group-item text-muted">No students yet. Share the code above.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <h5 class="mb-2">Exams for this class</h5>
+    <div class="card">
+      <ul class="list-group list-group-flush">
+        {% for exam in exams %}
+          <li class="list-group-item d-flex justify-content-between">
+            <a class="text-decoration-none" href="{% url 'exam_detail' exam.pk %}">{{ exam.title }}</a>
+            <span class="small text-muted">{{ exam.start_time|date:"d M" }}</span>
+          </li>
+        {% empty %}
+          <li class="list-group-item text-muted">No exam assigned to this class yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

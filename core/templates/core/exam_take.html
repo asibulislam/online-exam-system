@@ -1,0 +1,179 @@
+{% extends "core/base.html" %}
+{% block title %}{{ exam.title }} · In progress{% endblock %}
+{% block head %}
+<style>
+  .timer-bar { position: sticky; top: 56px; z-index: 20; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: .6rem 1rem; box-shadow: 0 4px 12px rgba(15,23,42,.06); }
+  #timer { font-variant-numeric: tabular-nums; font-size: 1.6rem; font-weight: 700; color: var(--brand); }
+  #timer.warn { color: #d97706; }
+  #timer.danger { color: #dc2626; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+  .q-card { scroll-margin-top: 140px; }
+  .option { display: flex; gap: .65rem; align-items: flex-start; padding: .7rem .9rem; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; margin-bottom: .5rem; transition: .12s; }
+  .option:hover { border-color: var(--brand); background: #f5f5ff; }
+  .option input { margin-top: .3rem; }
+  .option:has(input:checked) { border-color: var(--brand); background: #eef2ff; }
+  .nav-dot { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid var(--line); background: #fff; color: var(--ink); text-decoration: none; font-weight: 600; font-size: .85rem; }
+  .nav-dot.done { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .side { position: sticky; top: 150px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="timer-bar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div>
+    <div class="fw-semibold">{{ exam.title }}</div>
+    <div class="small text-muted"><span id="progress">{{ answered }}</span> of {{ questions|length }} answered &middot; <span id="saveStatus" class="text-muted">Auto-save on</span></div>
+  </div>
+  <div class="text-end">
+    <div class="small text-muted text-uppercase" style="letter-spacing:.05em">Time left</div>
+    <div id="timer">--:--</div>
+  </div>
+</div>
+
+<div id="tabWarn" class="alert alert-warning d-none mb-3" role="alert">
+  You left the exam page. This was recorded and your teacher can see it.
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-9">
+    <form id="examForm" method="post" action="{% url 'attempt_submit' attempt.pk %}">
+      {% csrf_token %}
+      {% for q in questions %}
+      <div class="card q-card mb-3" id="q-{{ q.pk }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="badge-soft soft-blue">Question {{ forloop.counter }}</span>
+            <span class="small text-muted">{{ q.marks }} mark{{ q.marks|pluralize }}</span>
+          </div>
+          <p class="fs-6 fw-semibold" style="white-space: pre-line">{{ q.text }}</p>
+          {% for c in q.options %}
+          <label class="option">
+            <input class="form-check-input" type="radio" name="q_{{ q.pk }}" value="{{ c.pk }}" {% if q.selected == c.pk %}checked{% endif %}>
+            <span>{{ c.text }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+      <button id="submitBtn" type="submit" class="btn btn-brand btn-lg w-100 mb-4"><i class="bi bi-send"></i> Submit exam</button>
+    </form>
+  </div>
+
+  <div class="col-lg-3 d-none d-lg-block">
+    <div class="card side p-3">
+      <div class="fw-semibold mb-2">Questions</div>
+      <div class="d-flex flex-wrap gap-2">
+        {% for q in questions %}
+          <a href="#q-{{ q.pk }}" id="nav-{{ q.pk }}" class="nav-dot {% if q.selected %}done{% endif %}">{{ forloop.counter }}</a>
+        {% endfor %}
+      </div>
+      <div class="small text-muted mt-3"><span class="nav-dot done" style="width:14px;height:14px;border-radius:4px"></span> answered</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const form = document.getElementById('examForm');
+  const timerEl = document.getElementById('timer');
+  const statusEl = document.getElementById('saveStatus');
+  const progressEl = document.getElementById('progress');
+  const saveUrl = "{% url 'attempt_save' attempt.pk %}";
+  const eventUrl = "{% url 'attempt_event' attempt.pk %}";
+  const tabWarn = document.getElementById('tabWarn');
+  let tabSwitches = {{ tab_switches }};
+  const csrf = form.querySelector('[name=csrfmiddlewaretoken]').value;
+  const total = {{ questions|length }};
+  let endAt = performance.now() + {{ remaining }} * 1000;
+  let submitting = false;
+
+  function fmt(s) {
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+    return h ? h + ':' + mm + ':' + ss : mm + ':' + ss;
+  }
+
+  function submitNow() {
+    if (submitting) return;
+    submitting = true;
+    window.onbeforeunload = null;
+    document.getElementById('submitBtn').disabled = true;
+    statusEl.textContent = 'Submitting...';
+    form.submit();
+  }
+
+  function tick() {
+    const left = Math.max(0, Math.ceil((endAt - performance.now()) / 1000));
+    timerEl.textContent = fmt(left);
+    timerEl.classList.toggle('warn', left <= 300 && left > 60);
+    timerEl.classList.toggle('danger', left <= 60);
+    if (left <= 0) submitNow();
+  }
+  setInterval(tick, 500);
+  tick();
+
+  function countAnswered() {
+    const names = new Set();
+    form.querySelectorAll('input[type=radio]:checked').forEach(r => names.add(r.name));
+    return names.size;
+  }
+
+  async function save(qid, cid) {
+    statusEl.textContent = 'Saving...';
+    try {
+      const res = await fetch(saveUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ question: qid, choice: cid })
+      });
+      if (res.status === 403) { submitNow(); return; }
+      if (res.status === 400) { statusEl.textContent = 'Could not save this answer. Please try again.'; return; }
+      if (!res.ok) throw new Error('save failed');
+      const json = await res.json();
+      endAt = performance.now() + json.remaining * 1000;   // stay in sync with the server clock
+      statusEl.textContent = 'Saved ✓';
+    } catch (e) {
+      statusEl.textContent = 'Offline: your answer will be sent when you submit';
+    }
+  }
+
+  form.addEventListener('change', function (e) {
+    if (!e.target.matches('input[type=radio]')) return;
+    const qid = e.target.name.slice(2);
+    const dot = document.getElementById('nav-' + qid);
+    if (dot) dot.classList.add('done');
+    progressEl.textContent = countAnswered();
+    save(qid, e.target.value);
+  });
+
+  form.addEventListener('submit', function (e) {
+    if (submitting) return;
+    const missing = total - countAnswered();
+    const msg = missing
+      ? 'You have ' + missing + ' unanswered question' + (missing > 1 ? 's' : '') + '. Submit anyway?'
+      : 'Submit your exam now? You cannot change answers afterwards.';
+    if (!confirm(msg)) { e.preventDefault(); return; }
+    submitting = true;
+    window.onbeforeunload = null;
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden || submitting) return;
+    tabSwitches += 1;
+    tabWarn.classList.remove('d-none');
+    tabWarn.textContent = 'You left the exam page ' + tabSwitches + ' time' + (tabSwitches > 1 ? 's' : '') + '. This was recorded and your teacher can see it.';
+    fetch(eventUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ type: 'tab_hidden' })
+    }).catch(function () {});
+  });
+
+  window.onbeforeunload = function () { if (!submitting) return 'Your exam is still running.'; };
+})();
+</script>
+{% endblock %}

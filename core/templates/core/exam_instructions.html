@@ -1,0 +1,37 @@
+{% extends "core/base.html" %}
+{% block title %}{{ exam.title }} · Instructions{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card p-4">
+      <h3 class="page-title mb-1">{{ exam.title }}</h3>
+      <div class="text-muted mb-3">{{ exam.subject }} &middot; by {{ exam.teacher.display_name }}</div>
+      {% if exam.description %}<p>{{ exam.description }}</p>{% endif %}
+
+      <div class="row g-3 text-center mb-3">
+        <div class="col-4"><div class="card stat"><div class="num">{{ question_count }}</div><div class="lbl">Questions</div></div></div>
+        <div class="col-4"><div class="card stat"><div class="num">{{ total_marks }}</div><div class="lbl">Total marks</div></div></div>
+        <div class="col-4"><div class="card stat"><div class="num">{{ minutes }}</div><div class="lbl">Minutes</div></div></div>
+      </div>
+
+      <h6>Before you start</h6>
+      <ul class="text-muted">
+        <li>The timer starts the moment you press <strong>Start</strong> and cannot be paused.</li>
+        <li>You can attempt this exam <strong>only once</strong>.</li>
+        <li>Your answers are saved automatically each time you pick an option.</li>
+        <li>When time runs out, the exam is submitted automatically.</li>
+        <li>If you close the page by accident, log in again and press <em>Continue</em>. The clock keeps running.</li>
+        <li>You need {{ exam.pass_percent }}% to pass.</li>
+      </ul>
+
+      {% if question_count == 0 %}
+        <div class="alert alert-warning mb-0">This exam has no questions yet.</div>
+      {% else %}
+        <form method="post">{% csrf_token %}
+          <button class="btn btn-brand btn-lg w-100" type="submit"><i class="bi bi-play-fill"></i> Start exam</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

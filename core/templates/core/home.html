@@ -1,0 +1,61 @@
+{% extends "core/base.html" %}
+{% block title %}Online Exam System · Online exams with instant results{% endblock %}
+{% block content %}
+<section class="hero text-center">
+  <span class="badge-soft soft-blue mb-3 d-inline-block">Online exams with instant results</span>
+  <h1 class="mb-3">Exams without the paperwork.</h1>
+  <p class="lead text-muted mx-auto" style="max-width: 640px">
+    Teachers build timed multiple-choice exams. Students answer in the browser.
+    Marking happens the moment they submit, and every exam comes with analytics on how the class did.
+  </p>
+  <div class="d-flex flex-column align-items-center gap-2 mt-4">
+    <a href="{% url 'register' %}" class="btn btn-brand btn-lg px-4">Get started free</a>
+    <div class="small text-muted">Already have an account? <a href="{% url 'login' %}">Log in</a></div>
+  </div>
+</section>
+
+<section class="row g-4 pb-4">
+  <div class="col-md-4 feature">
+    <div class="card h-100 p-4">
+      <i class="bi bi-stopwatch mb-2"></i>
+      <h5>Tamper-proof timing</h5>
+      <p class="text-muted mb-0">Deadlines are enforced on the server, so changing the device clock gives no extra time. Answers save automatically as students go.</p>
+    </div>
+  </div>
+  <div class="col-md-4 feature">
+    <div class="card h-100 p-4">
+      <i class="bi bi-lightning-charge mb-2"></i>
+      <h5>Instant grading</h5>
+      <p class="text-muted mb-0">Scores and a full answer review are ready as soon as the exam ends. No manual marking.</p>
+    </div>
+  </div>
+  <div class="col-md-4 feature">
+    <div class="card h-100 p-4">
+      <i class="bi bi-bar-chart-line mb-2"></i>
+      <h5>Analytics for teachers</h5>
+      <p class="text-muted mb-0">See the score spread, which questions were too hard, and which topics need another lesson.</p>
+    </div>
+  </div>
+</section>
+
+<section class="pb-4">
+  <h2 class="h4 fw-bold text-center mb-4">How it works</h2>
+  <div class="row g-4 text-center">
+    <div class="col-md-4">
+      <div class="stat"><div class="num">1</div></div>
+      <h6 class="fw-semibold">Teacher builds the exam</h6>
+      <p class="small text-muted mb-0">Add timed multiple-choice questions, set marks and topics, then publish.</p>
+    </div>
+    <div class="col-md-4">
+      <div class="stat"><div class="num">2</div></div>
+      <h6 class="fw-semibold">Students take it online</h6>
+      <p class="small text-muted mb-0">Students start from their dashboard and answer in the browser with a live countdown.</p>
+    </div>
+    <div class="col-md-4">
+      <div class="stat"><div class="num">3</div></div>
+      <h6 class="fw-semibold">Results are ready instantly</h6>
+      <p class="small text-muted mb-0">Scores post on submit or at time-up, with a review and class analytics for the teacher.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

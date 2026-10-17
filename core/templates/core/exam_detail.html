@@ -1,0 +1,76 @@
+{% extends "core/base.html" %}
+{% block title %}{{ exam.title }} · Online Exam System{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+  <div>
+    <a href="{% url 'dashboard' %}" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> All exams</a>
+    <h2 class="page-title mb-1 mt-1">{{ exam.title }}</h2>
+    <div class="text-muted">{{ exam.subject }} &middot; {{ exam.duration_minutes }} min &middot; pass mark {{ exam.pass_percent }}%
+      {% if exam.shuffle %}&middot; shuffled{% endif %}</div>
+    <div class="text-muted small">{{ exam.start_time|date:"d M Y, H:i" }} &rarr; {{ exam.end_time|date:"d M Y, H:i" }}</div>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-light border" href="{% url 'exam_edit' exam.pk %}"><i class="bi bi-pencil"></i> Edit</a>
+    <a class="btn btn-light border" href="{% url 'exam_results' exam.pk %}"><i class="bi bi-list-check"></i> Results</a>
+    <a class="btn btn-light border" href="{% url 'exam_analytics' exam.pk %}"><i class="bi bi-bar-chart"></i> Analytics</a>
+    <form method="post" action="{% url 'exam_toggle_publish' exam.pk %}">{% csrf_token %}
+      {% if exam.is_published %}
+        <button class="btn btn-warning" type="submit">Unpublish</button>
+      {% else %}
+        <button class="btn btn-brand" type="submit">Publish</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="mb-3">
+  {% if exam.is_published %}<span class="badge-soft soft-green">Published</span>{% else %}<span class="badge-soft soft-gray">Draft: students cannot see it</span>{% endif %}
+  <span class="badge-soft soft-blue ms-1">{{ questions|length }} question{{ questions|length|pluralize }} &middot; {{ total_marks }} marks</span>
+</div>
+
+{% if has_attempts %}
+<div class="alert alert-info">Students have already started this exam, so its questions are locked.</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Questions
+    {% if not has_attempts %}<a class="btn btn-sm btn-brand" href="{% url 'question_add' exam.pk %}"><i class="bi bi-plus-lg"></i> Add question</a>{% endif %}
+  </div>
+  <div class="list-group list-group-flush">
+    {% for q in questions %}
+    <div class="list-group-item p-3">
+      <div class="d-flex justify-content-between gap-3">
+        <div>
+          <div class="fw-semibold">{{ forloop.counter }}. {{ q.text }}</div>
+          <div class="small text-muted mb-2">{{ q.topic }} &middot; {{ q.marks }} mark{{ q.marks|pluralize }}</div>
+          <ul class="list-unstyled mb-0 small">
+            {% for c in q.choices.all %}
+              <li class="{% if c.is_correct %}text-success fw-semibold{% endif %}">
+                <i class="bi {% if c.is_correct %}bi-check-circle-fill{% else %}bi-circle{% endif %} me-1"></i>{{ c.text }}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% if not has_attempts %}
+        <div class="text-nowrap">
+          <a class="btn btn-sm btn-light border" href="{% url 'question_edit' exam.pk q.pk %}"><i class="bi bi-pencil"></i></a>
+          <form method="post" action="{% url 'question_delete' exam.pk q.pk %}" class="d-inline"
+                onsubmit="return confirm('Delete this question?');">{% csrf_token %}
+            <button class="btn btn-sm btn-light border text-danger" type="submit"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="list-group-item p-4 text-center text-muted">No questions yet. Add your first one.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<form method="post" action="{% url 'exam_delete' exam.pk %}" class="mt-4"
+      onsubmit="return confirm('Delete this exam and all student results? This cannot be undone.');">{% csrf_token %}
+  <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i> Delete exam</button>
+</form>
+{% endblock %}

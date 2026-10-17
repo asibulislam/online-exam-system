@@ -1,0 +1,105 @@
+{% extends "core/base.html" %}
+{% block title %}My exams · Online Exam System{% endblock %}
+{% block content %}
+<h2 class="page-title mb-1">Hello, {{ user.display_name }}</h2>
+<div class="text-muted mb-4">Your exams in one place.</div>
+
+<div class="card p-3 mb-4">
+  <div class="row g-2 align-items-center">
+    <div class="col-md-7">
+      <div class="fw-semibold">Join a class</div>
+      <div class="small text-muted">
+        {% if joined_classes %}You are in: {% for c in joined_classes %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}Enter the code your teacher gave you to see class exams.{% endif %}
+      </div>
+    </div>
+    <div class="col-md-5">
+      <form method="post" action="{% url 'class_join' %}" class="d-flex gap-2">
+        {% csrf_token %}
+        <input type="text" name="code" class="form-control text-uppercase" placeholder="Class code" maxlength="8" required>
+        <button class="btn btn-brand text-nowrap" type="submit">Join</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if summary.count %}
+<div class="row g-3 mb-4">
+  <div class="col-4"><div class="card stat"><div class="num">{{ summary.count }}</div><div class="lbl">Exams taken</div></div></div>
+  <div class="col-4"><div class="card stat"><div class="num">{{ summary.avg }}%</div><div class="lbl">Average score</div></div></div>
+  <div class="col-4"><div class="card stat"><div class="num">{{ summary.passed }}</div><div class="lbl">Passed</div></div></div>
+</div>
+{% endif %}
+
+<h5 class="mb-2">Available now</h5>
+<div class="row g-3 mb-4">
+  {% for exam in available %}
+  <div class="col-md-6">
+    <div class="card p-3 h-100">
+      <div class="d-flex justify-content-between">
+        <div>
+          <div class="fw-semibold">{{ exam.title }}</div>
+          <div class="small text-muted">{{ exam.subject }} &middot; by {{ exam.teacher.display_name }}</div>
+        </div>
+        <span class="badge-soft soft-green align-self-start">Open</span>
+      </div>
+      <div class="small text-muted my-2"><i class="bi bi-stopwatch"></i> {{ exam.duration_minutes }} min &middot; closes {{ exam.end_time|date:"d M, H:i" }}</div>
+      <a class="btn btn-brand mt-auto" href="{% url 'exam_start' exam.pk %}">
+        {% if exam.attempt %}Continue exam{% else %}Start exam{% endif %}
+      </a>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12"><div class="card p-4 text-center text-muted">No exam is open right now.</div></div>
+  {% endfor %}
+</div>
+
+{% if upcoming %}
+<h5 class="mb-2">Upcoming</h5>
+<div class="card mb-4">
+  <ul class="list-group list-group-flush">
+    {% for exam in upcoming %}
+    <li class="list-group-item d-flex justify-content-between flex-wrap gap-1">
+      <span><span class="fw-semibold">{{ exam.title }}</span> <span class="text-muted small">&middot; {{ exam.subject }}</span></span>
+      <span class="small text-muted">Opens {{ exam.start_time|date:"d M, H:i" }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<h5 class="mb-2">Completed</h5>
+<div class="card mb-4">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light"><tr><th>Exam</th><th>Score</th><th>Percent</th><th>Result</th><th></th></tr></thead>
+      <tbody>
+      {% for exam in completed %}
+        <tr>
+          <td><span class="fw-semibold">{{ exam.title }}</span><div class="small text-muted">{{ exam.subject }}</div></td>
+          <td>{{ exam.attempt.score }} / {{ exam.attempt.total }}</td>
+          <td>{{ exam.attempt.percent }}%</td>
+          <td>{% if exam.attempt.passed %}<span class="badge-soft soft-green">Pass</span>{% else %}<span class="badge-soft soft-red">Fail</span>{% endif %}</td>
+          <td class="text-end"><a class="btn btn-sm btn-light border" href="{% url 'attempt_result' exam.attempt.pk %}">Review</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="text-center text-muted p-4">You have not finished any exam yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if missed %}
+<h5 class="mb-2">Missed</h5>
+<div class="card">
+  <ul class="list-group list-group-flush">
+    {% for exam in missed %}
+    <li class="list-group-item d-flex justify-content-between">
+      <span>{{ exam.title }} <span class="text-muted small">&middot; {{ exam.subject }}</span></span>
+      <span class="badge-soft soft-gray">Closed</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

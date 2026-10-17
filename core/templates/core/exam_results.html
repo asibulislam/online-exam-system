@@ -1,0 +1,43 @@
+{% extends "core/base.html" %}
+{% block title %}Results · {{ exam.title }}{% endblock %}
+{% block content %}
+<a href="{% url 'exam_detail' exam.pk %}" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> {{ exam.title }}</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 mt-1">
+  <h2 class="page-title mb-0">Results</h2>
+  <div class="d-flex gap-2">
+    <a class="btn btn-light border" href="{% url 'exam_analytics' exam.pk %}"><i class="bi bi-bar-chart"></i> Analytics</a>
+    <a class="btn btn-brand" href="{% url 'exam_results_csv' exam.pk %}"><i class="bi bi-download"></i> Download CSV</a>
+  </div>
+</div>
+
+<div class="small text-muted mb-2">Tab switches count how often the student left the exam tab. It is a warning sign for you to review, not proof of cheating.</div>
+{% if in_progress %}
+<div class="alert alert-info">{{ in_progress }} student{{ in_progress|pluralize }} still taking the exam. They appear here once submitted.</div>
+{% endif %}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>#</th><th>Student</th><th>Score</th><th>Percent</th><th>Result</th><th>Time taken</th><th>Tab switches</th><th>Submitted</th></tr>
+      </thead>
+      <tbody>
+      {% for a in attempts %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td><span class="fw-semibold">{{ a.student.display_name }}</span><div class="small text-muted">{{ a.student.username }}</div></td>
+          <td>{{ a.score }} / {{ a.total }}</td>
+          <td>{{ a.percent }}%</td>
+          <td>{% if a.passed %}<span class="badge-soft soft-green">Pass</span>{% else %}<span class="badge-soft soft-red">Fail</span>{% endif %}</td>
+          <td>{{ a.minutes_taken }} min</td>
+          <td>{% if a.tab_switches %}<span class="badge-soft soft-amber">{{ a.tab_switches }}</span>{% else %}<span class="text-muted">0</span>{% endif %}</td>
+          <td class="small">{{ a.submitted_at|date:"d M, H:i" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8" class="text-center text-muted p-4">No submissions yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

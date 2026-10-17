@@ -1,0 +1,18 @@
+# Render Blueprint. Create a "Blueprint" on render.com and point it at your GitHub repo.
+# Set DATABASE_URL yourself (see README, Neon free PostgreSQL), SECRET_KEY is generated.
+services:
+  - type: web
+    name: online-exam-system
+    runtime: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn examsys.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

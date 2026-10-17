@@ -1,0 +1,125 @@
+{% extends "core/base.html" %}
+{% block title %}Analytics · {{ exam.title }}{% endblock %}
+{% block content %}
+<a href="{% url 'exam_detail' exam.pk %}" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> {{ exam.title }}</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 mt-1">
+  <h2 class="page-title mb-0">Analytics</h2>
+  <a class="btn btn-light border" href="{% url 'exam_results' exam.pk %}"><i class="bi bi-list-check"></i> Full results</a>
+</div>
+
+{% if a.n == 0 %}
+  <div class="card p-5 text-center">
+    <i class="bi bi-bar-chart display-5 text-muted"></i>
+    <h5 class="mt-3">Nothing to analyse yet</h5>
+    <p class="text-muted mb-0">Charts appear after the first student submits.</p>
+  </div>
+{% else %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3 col-lg"><div class="card stat"><div class="num">{{ a.n }}</div><div class="lbl">Submissions</div></div></div>
+  <div class="col-6 col-md-3 col-lg"><div class="card stat"><div class="num">{{ a.avg }}%</div><div class="lbl">Average</div></div></div>
+  <div class="col-6 col-md-3 col-lg"><div class="card stat"><div class="num">{{ a.median }}%</div><div class="lbl">Median</div></div></div>
+  <div class="col-6 col-md-3 col-lg"><div class="card stat"><div class="num">{{ a.highest }}%</div><div class="lbl">Highest</div></div></div>
+  <div class="col-6 col-md-3 col-lg"><div class="card stat"><div class="num">{{ a.lowest }}%</div><div class="lbl">Lowest</div></div></div>
+  <div class="col-6 col-md-3 col-lg"><div class="card stat"><div class="num">{{ a.pass_rate }}%</div><div class="lbl">Pass rate ({{ a.pass_count }}/{{ a.n }})</div></div></div>
+  <div class="col-6 col-md-3 col-lg"><div class="card stat"><div class="num">{{ a.avg_minutes }}</div><div class="lbl">Avg minutes</div></div></div>
+</div>
+
+{% if a.weak_topics %}
+<div class="alert alert-warning">
+  <strong><i class="bi bi-exclamation-triangle me-1"></i>Topics to revisit:</strong>
+  {% for t in a.weak_topics %}{{ t.topic }} ({{ t.pct }}% correct){% if not forloop.last %}, {% endif %}{% endfor %}.
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-header">Score distribution</div>
+      <div class="card-body"><canvas id="distChart" height="220"></canvas>
+        <div class="small text-muted mt-2">Number of students in each 10% score band.</div></div></div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-header">Performance by topic</div>
+      <div class="card-body"><canvas id="topicChart" height="220"></canvas>
+        <div class="small text-muted mt-2">Share of available marks the class earned in each topic.</div></div></div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">Question difficulty</div>
+  <div class="card-body"><canvas id="questionChart" height="110"></canvas>
+    <div class="small text-muted mt-2">Percent of students who got each question right. Skipped questions count as wrong.</div></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">Question breakdown</div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light"><tr><th>#</th><th>Question</th><th>Topic</th><th class="text-center">Correct</th><th class="text-center">Skipped</th><th>% right</th><th>Difficulty</th></tr></thead>
+      <tbody>
+      {% for q in a.questions %}
+        <tr>
+          <td>Q{{ forloop.counter }}</td>
+          <td style="max-width: 360px">{{ q.text|truncatechars:90 }}</td>
+          <td>{{ q.topic }}</td>
+          <td class="text-center">{{ q.correct }}/{{ a.n }}</td>
+          <td class="text-center">{{ q.skipped }}</td>
+          <td>{{ q.pct }}%</td>
+          <td>
+            {% if q.difficulty == 'Easy' %}<span class="badge-soft soft-green">Easy</span>
+            {% elif q.difficulty == 'Medium' %}<span class="badge-soft soft-amber">Medium</span>
+            {% else %}<span class="badge-soft soft-red">Hard</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Top performers</div>
+  <ul class="list-group list-group-flush">
+    {% for t in a.top %}
+      <li class="list-group-item d-flex justify-content-between">
+        <span>{{ forloop.counter }}. {{ t.student.display_name }}</span>
+        <span class="fw-semibold">{{ t.score }}/{{ t.total }} &middot; {{ t.percent }}%</span>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+
+{{ chart|json_script:"chart-data" }}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if a.n %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const data = JSON.parse(document.getElementById('chart-data').textContent);
+  const BRAND = '#4f46e5';
+  const level = v => v >= 70 ? '#22c55e' : (v >= 40 ? '#f59e0b' : '#ef4444');
+  Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  Chart.defaults.plugins.legend.display = false;
+
+  new Chart(document.getElementById('distChart'), {
+    type: 'bar',
+    data: { labels: data.distribution.labels, datasets: [{ data: data.distribution.values, backgroundColor: BRAND, borderRadius: 4 }] },
+    options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Students' } } } }
+  });
+
+  new Chart(document.getElementById('topicChart'), {
+    type: 'bar',
+    data: { labels: data.topics.labels, datasets: [{ data: data.topics.values, backgroundColor: data.topics.values.map(level), borderRadius: 4 }] },
+    options: { indexAxis: 'y', scales: { x: { min: 0, max: 100, title: { display: true, text: '% of marks earned' } } } }
+  });
+
+  new Chart(document.getElementById('questionChart'), {
+    type: 'bar',
+    data: { labels: data.questions.labels, datasets: [{ data: data.questions.values, backgroundColor: data.questions.values.map(level), borderRadius: 4 }] },
+    options: { scales: { y: { min: 0, max: 100, title: { display: true, text: '% correct' } } } }
+  });
+</script>
+{% endif %}
+{% endblock %}
