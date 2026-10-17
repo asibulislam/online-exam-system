@@ -1,120 +1,169 @@
-# Online Exam System with Analytics
+# Online Exam System
 
-A web app where teachers create timed multiple-choice exams, students take them in the browser, and the system grades instantly and shows analytics on how the class performed.
-
-Built for **CSE-326 Software Engineering Lab**, First Capital University of Bangladesh.
-
-**Stack:** Python 3 · Django 5 · PostgreSQL (SQLite for local development) · Bootstrap 5 · Chart.js
+A web application for conducting timed multiple-choice exams online. Teachers create exams and manage classes, students take exams in the browser, and results are graded automatically with class-level analytics.
 
 ## Features
 
-| Role | What they can do |
-|---|---|
-| **Teacher** | Create classes and share a 6-character join code · create / edit / delete exams (for one class or everyone) · add, edit, delete MCQ questions with topic and marks · publish or unpublish · see results table with tab-switch counts · download results as CSV · open the analytics page |
-| **Student** | Join a class with its code · see open, upcoming, completed and missed exams · read the rules · take the exam with a live countdown · answers auto-save · automatic submit at time-up · instant score with full answer review |
-| **Admin** | Django admin at `/admin/` for managing every table |
+### Teacher
+- Create classes and share a 6-character join code
+- Create, edit, and delete exams, assigned to a specific class or to all students
+- Add, edit, and delete multiple-choice questions with topics and marks
+- Publish or unpublish exams
+- View results with tab-switch counts and download them as CSV
+- Open an analytics page for each exam
 
-**Analytics page (per exam):** submissions, average, median, highest, lowest, pass rate, average time taken · score distribution chart · performance by topic with "topics to revisit" · per-question difficulty (Easy / Medium / Hard) · top performers.
+### Student
+- Join a class using its code
+- View open, upcoming, completed, and missed exams
+- Take exams with a live countdown and automatic answer saving
+- Submit manually or automatically at time-up
+- Review scores and answers after submission
 
-## Run it on your computer
+### Admin
+- Manage all data through the Django admin panel at `/admin/`
+
+### Analytics (per exam)
+- Submissions, average, median, highest, and lowest score, pass rate, and average time taken
+- Score distribution chart
+- Performance by topic, with topics that need review
+- Per-question difficulty (Easy, Medium, Hard)
+- Top performers
+
+## Tech Stack
+
+- **Backend:** Python 3, Django 5
+- **Database:** SQLite for local development, PostgreSQL for deployment
+- **Frontend:** Bootstrap 5, Chart.js
+- **Deployment:** Gunicorn, WhiteNoise, Render, Neon (PostgreSQL)
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.10 or newer
+- pip
+
+### Installation
 
 ```bash
 python -m venv venv
-venv\Scripts\activate          # Windows
-# source venv/bin/activate     # Linux / macOS
-pip install -r requirements.txt
 
+# Windows
+venv\Scripts\activate
+
+# macOS / Linux
+source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+### Database setup
+
+```bash
 python manage.py migrate
-python manage.py seed_demo      # optional: demo teacher, 14 students, 2 exams with results
-python manage.py createsuperuser   # optional: for /admin/
+python manage.py seed_demo          # optional: demo data
+python manage.py createsuperuser    # optional: admin account
+```
+
+### Run the development server
+
+```bash
 python manage.py runserver
 ```
 
-Open http://127.0.0.1:8000
+Open http://127.0.0.1:8000 in your browser.
 
-Demo logins (after `seed_demo`), password `demo12345`:
-- Teacher: `teacher1`
-- Students: `student01` ... `student14`
+### Demo accounts
 
-Without `DATABASE_URL` set, the app uses a local SQLite file. To use PostgreSQL locally, set
-`DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/examdb` before running.
+After running `seed_demo`, use the following credentials (password: `demo12345`):
 
-Run the tests: `python manage.py test` (40 tests).
+| Role    | Username                   |
+|---------|----------------------------|
+| Teacher | `teacher1`                 |
+| Student | `student01` to `student14` |
 
-If you updated from an older version, also run `python manage.py migrate` (adds classes and tab-switch tracking).
+### Using PostgreSQL locally
 
-## Deploy (free) with Render + Neon
-
-1. Push this folder to a GitHub repository.
-2. Create a free PostgreSQL database on [Neon](https://neon.tech) and copy its connection string.
-3. On [Render](https://render.com): **New > Blueprint** (or **Web Service**), choose your repository.
-   - Build command: `./build.sh`
-   - Start command: `gunicorn examsys.wsgi:application`
-4. Add environment variables: `DEBUG=False`, `SECRET_KEY=<long random string>`, `DATABASE_URL=<Neon string>`.
-5. After the first deploy, open the Render **Shell** (or run locally with the same `DATABASE_URL`) and run
-   `python manage.py createsuperuser`. For a demo site you may also run
-   `python manage.py seed_demo --password <something-private>`.
-
-Free plans change often, so check the current limits on both sites. A free Render service sleeps when idle, so the first page load after a break can take about a minute. Open the site a few minutes before a demo.
-
-## How it works
+By default the app uses SQLite. To use PostgreSQL, set the `DATABASE_URL` environment variable before running any command:
 
 ```
-Teacher creates exam ──► adds questions ──► publishes
-                                               │
-Student sees exam on dashboard ◄───────────────┘
-        │  press Start  → Attempt row created, deadline = min(now + duration, exam end)
-        ▼
-Exam page  ── every click → POST /attempt/<id>/save/  (server checks deadline, stores answer)
-        │  timer reaches 0 or student presses Submit
-        ▼
-POST /attempt/<id>/submit/ → server grades (sum of marks of correct choices) → result page
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/examdb
 ```
 
-**Why the timer is trustworthy:** the deadline is stored in the database when the student presses Start. The browser countdown is only a display. Every save and submit is checked against the server's clock, so changing the computer clock or editing the page gives no extra time. Answers sent more than 15 seconds after the deadline are ignored (the grace period covers slow networks). If a student leaves and never comes back, their attempt is graded automatically the next time anyone opens it.
 
-**Classes:** a teacher creates a class and shares its code. Students enter the code on their dashboard. An exam can be set to one class, so only that class's students see it.
+### Running tests
 
-**Tab switches:** when the exam tab is hidden, the browser reports it to the server, which counts it on the attempt. The student sees a warning. The teacher sees the count on the results page and in the CSV. It never changes the score.
+```bash
+python manage.py test
+```
 
-**Other rules built in**
-- One attempt per student per exam (database unique constraint).
-- Questions lock once any student has started, so grades cannot change afterwards.
-- A teacher can only see and edit their own exams.
-- The exam page never sends the correct answers to the browser. They appear only on the result page, after submission.
-- Questions and options are shuffled per student (same order after a refresh).
-- CSV export neutralises spreadsheet formula injection.
+## How It Works
 
-## Project structure
+1. A teacher creates an exam, adds questions, and publishes it.
+2. A student sees the exam on their dashboard and presses **Start**. The server records the attempt and a deadline, calculated as the earlier of *start time + duration* and *exam end time*.
+3. The exam page saves each answer to the server as the student selects it.
+4. The attempt is submitted when the timer reaches zero or the student presses **Submit**. The server grades it and shows the result.
+
+### Timer integrity
+
+The deadline is stored on the server when the student starts the exam. The countdown in the browser is only a display. Every save and submit is checked against the server clock, so changing the device clock or editing the page does not extend the time. Answers received more than 15 seconds after the deadline are rejected, which allows for slow networks. If a student never returns after the deadline, the attempt is graded automatically the next time it is opened or viewed by the teacher.
+
+### Classes
+
+A teacher creates a class and shares its join code. Students enter the code on their dashboard. An exam assigned to a class is visible only to students who have joined that class. Exams with no class are visible to all students.
+
+### Tab switch tracking
+
+When the exam tab is hidden, the browser reports the event to the server, which records it on the attempt. The student sees a warning, and the teacher sees the count on the results page and in the CSV export. Tab switches do not affect the score.
+
+## Security and Data Integrity
+
+- One attempt per student per exam, enforced by a database constraint
+- Questions cannot be changed after any student has started the exam
+- Teachers can only access their own exams and classes
+- Correct answers are never sent to the browser during an exam; they appear only on the result page after submission
+- Questions and options are shuffled per student, with a stable order on page refresh
+- CSV exports are sanitized against spreadsheet formula injection
+
+## Deployment
+
+The application can be deployed for free using Render (hosting) and Neon (PostgreSQL).
+
+1. Push the repository to GitHub.
+2. Create a PostgreSQL database on [Neon](https://neon.tech) and copy the connection string.
+3. On [Render](https://render.com), create a new Blueprint or Web Service from the repository.
+4. Set the following environment variables:
+   - `DEBUG` = `False`
+   - `SECRET_KEY` = a long random string
+   - `DATABASE_URL` = the Neon connection string
+   - `ALLOWED_HOSTS` = your Render domain
+5. Build command: `./build.sh`. Start command: `gunicorn examsys.wsgi:application`.
+6. After the first deploy, open the Render Shell and run `python manage.py createsuperuser`.
+
+Free hosting plans change over time, so check the current limits. A free Render service sleeps when idle, so the first request after a period of inactivity may take about a minute.
+
+## Project Structure
 
 ```
-examsys/            project settings, root urls, wsgi
+examsys/                 Project settings, root URL configuration, WSGI entry point
 core/
-  models.py         User, ClassRoom, Enrollment, Exam, Question, Choice, Attempt, Answer
-  views.py          teacher views, student views, auto-save, submit, result
-  forms.py          register, login, exam and question forms
-  utils.py          analytics calculations, CSV safety helper
-  urls.py           all routes
-  tests.py          40 automated tests
-  templates/        base layout + one template per page
-  management/commands/seed_demo.py   demo data
-build.sh · render.yaml · Procfile · requirements.txt     deployment files
+  models.py              User, ClassRoom, Enrollment, Exam, Question, Choice, Attempt, Answer
+  views.py               Teacher and student views, auto-save, submission, results
+  forms.py               Registration, login, exam, and question forms
+  utils.py               Analytics calculations and CSV helpers
+  urls.py                Application routes
+  tests.py               Automated test suite
+  templates/             Base layout and page templates
+  management/commands/   seed_demo command
+build.sh, render.yaml, Procfile, requirements.txt    Deployment files
 ```
+## Known Limitations
 
-## Database (ER summary)
+- Only single-answer multiple-choice questions are supported. Multi-select and written-answer questions are planned.
+- Tab switch tracking depends on JavaScript in the browser. It is a signal for the teacher to review, not proof of misconduct, and it cannot prevent outside help.
+- Teacher accounts can be created through the sign-up page. In a production setting, teacher accounts should be approved by an administrator.
+- Email notifications and password reset by email are not implemented.
 
-- **User** (role: teacher / student)
-- **Exam** — belongs to a teacher (User); has title, subject, duration, start/end time, pass %, published flag
-- **Question** — belongs to an Exam; has text, topic, marks
-- **Choice** — belongs to a Question; `is_correct` flag
-- **Attempt** — one Student × one Exam; deadline, submitted time, score, total
-- **Answer** — belongs to an Attempt; points to the Question and the Choice picked
+## License
 
-## Known limitations (future work)
-
-- Multiple-choice questions with a single correct answer only (no written or multi-select questions).
-- Exams without a class are visible to every student. Exams with a class are visible only to students who joined it.
-- Tab switching is recorded, but a determined student can still get outside help (for example on a second device). The count is a signal for the teacher, not proof.
-- Teacher accounts can be created through the sign-up page. In a real deployment an admin should approve teachers.
-- Tab switches are only recorded in the browser, so a student who turns off JavaScript or uses devtools can avoid being counted. Live proctoring is out of scope.
-- No email notifications or password reset by email.
+MIT © Md. Asibul Islam, 2026
